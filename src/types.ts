@@ -1,5 +1,6 @@
 export type ItemType = 'phase' | 'milestone' | 'branch-paper' | 'decision-gate';
-export type ZoomLevel = 'years' | 'quarters' | 'months';
+export type ItemStatus = 'planned' | 'in-progress' | 'done';
+export type ZoomLevel = 'years' | 'quarters' | 'months' | 'weeks';
 
 export interface TimelineItem {
   id: string;
@@ -9,6 +10,7 @@ export interface TimelineItem {
   end: string;      // ISO date (== start for milestones)
   color: string;
   type: ItemType;
+  status: ItemStatus;
   note?: string;
   dependsOn?: string[];
 }
@@ -36,6 +38,7 @@ export interface AppState {
   addTrack: (t: Omit<Track, 'id' | 'collapsed'>) => void;
   updateTrack: (id: string, t: Partial<Track>) => void;
   deleteTrack: (id: string) => void;
+  reorderTracks: (fromIndex: number, toIndex: number) => void;
   addItem: (i: Omit<TimelineItem, 'id'>) => void;
   updateItem: (id: string, i: Partial<TimelineItem>) => void;
   deleteItem: (id: string) => void;

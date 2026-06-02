@@ -8,8 +8,8 @@ let _id = 0;
 const uid = () => `id-${Date.now()}-${++_id}`;
 
 function seedData(): { config: ProgramConfig; tracks: Track[]; items: TimelineItem[] } {
-  const today = new Date();
-  const d = (monthsFromNow: number) => format(addMonths(today, monthsFromNow), 'yyyy-MM-dd');
+  const start = new Date('2026-06-01');
+  const d = (monthsFromStart: number) => format(addMonths(start, monthsFromStart), 'yyyy-MM-dd');
 
   const tracks: Track[] = [
     { id: 'setup', name: 'Setup', color: '#6366f1', collapsed: false },
@@ -23,22 +23,22 @@ function seedData(): { config: ProgramConfig; tracks: Track[]; items: TimelineIt
   ];
 
   const items: TimelineItem[] = [
-    { id: uid(), trackId: 'setup', name: 'Build 60 cages + tune cameras/model', start: d(0), end: d(3), color: '#6366f1', type: 'phase' },
-    { id: uid(), trackId: 'tmaze', name: 'Submit T-maze paper', start: d(2), end: d(2), color: '#3b82f6', type: 'milestone' },
-    { id: uid(), trackId: 'tmaze', name: 'Add +3mo / +24mo timepoints', start: d(3), end: d(9), color: '#3b82f6', type: 'phase' },
-    { id: uid(), trackId: 'lcaav', name: 'LC enhancement study', start: d(8), end: d(16), color: '#06b6d4', type: 'branch-paper' },
-    { id: uid(), trackId: 'hcm', name: '3mo WT baseline', start: d(1), end: d(4), color: '#10b981', type: 'phase' },
-    { id: uid(), trackId: 'hcm', name: 'WT + Tau recording 3-12mo (n=120)', start: d(4), end: d(28), color: '#10b981', type: 'phase' },
-    { id: uid(), trackId: 'hcm', name: 'CNS #1 — early detection', start: d(30), end: d(30), color: '#10b981', type: 'decision-gate' },
-    { id: uid(), trackId: 'drinking', name: 'HY thirst gene + drinking (new PhD lead)', start: d(14), end: d(26), color: '#f59e0b', type: 'branch-paper' },
-    { id: uid(), trackId: 'multiomics', name: 'snRNA+snATAC analysis 1.24M cells', start: d(6), end: d(34), color: '#8b5cf6', type: 'phase' },
-    { id: uid(), trackId: 'multiomics', name: 'CNS #2 — divergence-not-acceleration', start: d(40), end: d(40), color: '#8b5cf6', type: 'milestone' },
-    { id: uid(), trackId: 'als', name: 'Co-author, shared pipeline', start: d(4), end: d(14), color: '#ec4899', type: 'phase' },
-    { id: uid(), trackId: 'milestones', name: 'Defense / graduate', start: d(46), end: d(46), color: '#ef4444', type: 'milestone' },
+    { id: uid(), trackId: 'setup', name: 'Build 60 cages + tune cameras/model', start: d(0), end: d(3), color: '#6366f1', type: 'phase', status: 'in-progress' },
+    { id: uid(), trackId: 'tmaze', name: 'Submit T-maze paper', start: d(2), end: d(2), color: '#3b82f6', type: 'milestone', status: 'planned' },
+    { id: uid(), trackId: 'tmaze', name: 'Add +3mo / +24mo timepoints', start: d(3), end: d(9), color: '#3b82f6', type: 'phase', status: 'planned' },
+    { id: uid(), trackId: 'lcaav', name: 'LC enhancement study', start: d(8), end: d(16), color: '#06b6d4', type: 'branch-paper', status: 'planned' },
+    { id: uid(), trackId: 'hcm', name: '3mo WT baseline', start: d(1), end: d(4), color: '#10b981', type: 'phase', status: 'planned' },
+    { id: uid(), trackId: 'hcm', name: 'WT + Tau recording 3-12mo (n=120)', start: d(4), end: d(28), color: '#10b981', type: 'phase', status: 'planned' },
+    { id: uid(), trackId: 'hcm', name: 'CNS #1 — early detection', start: d(30), end: d(30), color: '#10b981', type: 'decision-gate', status: 'planned' },
+    { id: uid(), trackId: 'drinking', name: 'HY thirst gene + drinking (new PhD lead)', start: d(14), end: d(26), color: '#f59e0b', type: 'branch-paper', status: 'planned' },
+    { id: uid(), trackId: 'multiomics', name: 'snRNA+snATAC analysis 1.24M cells', start: d(6), end: d(34), color: '#8b5cf6', type: 'phase', status: 'planned' },
+    { id: uid(), trackId: 'multiomics', name: 'CNS #2 — divergence-not-acceleration', start: d(40), end: d(40), color: '#8b5cf6', type: 'milestone', status: 'planned' },
+    { id: uid(), trackId: 'als', name: 'Co-author, shared pipeline', start: d(4), end: d(14), color: '#ec4899', type: 'phase', status: 'planned' },
+    { id: uid(), trackId: 'milestones', name: 'Defense / graduate', start: d(46), end: d(46), color: '#ef4444', type: 'milestone', status: 'planned' },
   ];
 
   return {
-    config: { startDate: format(today, 'yyyy-MM-dd'), durationYears: 4 },
+    config: { startDate: '2026-06-01', durationYears: 4 },
     tracks,
     items,
   };
@@ -68,6 +68,12 @@ export const useStore = create<AppState>()(
           tracks: s.tracks.filter((tr) => tr.id !== id),
           items: s.items.filter((i) => i.trackId !== id),
         })),
+        reorderTracks: (fromIndex, toIndex) => set((s) => {
+          const newTracks = [...s.tracks];
+          const [moved] = newTracks.splice(fromIndex, 1);
+          newTracks.splice(toIndex, 0, moved);
+          return { tracks: newTracks };
+        }),
 
         addItem: (i) => set((s) => ({
           items: [...s.items, { ...i, id: uid() }],

@@ -11,6 +11,7 @@ function ZoomControl() {
     { key: 'years', label: 'Years' },
     { key: 'quarters', label: 'Quarters' },
     { key: 'months', label: 'Months' },
+    { key: 'weeks', label: 'Weeks' },
   ];
   return (
     <div className="flex bg-gray-100 rounded-lg p-0.5">
@@ -125,10 +126,14 @@ export default function App() {
     e.target.value = '';
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0 print:hidden">
         <h1 className="text-lg font-semibold text-gray-800">PhD research timeline</h1>
         <div className="w-px h-6 bg-gray-200" />
         <ZoomControl />
@@ -167,22 +172,28 @@ export default function App() {
           <div className="w-px h-6 bg-gray-200" />
           <button
             className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            onClick={handlePrint}
+          >
+            Print
+          </button>
+          <button
+            className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             onClick={handleExport}
           >
-            Export JSON
+            Export
           </button>
           <button
             className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             onClick={() => fileInputRef.current?.click()}
           >
-            Import JSON
+            Import
           </button>
           <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
         </div>
       </div>
 
       {/* Timeline */}
-      <div className="flex-1 p-4 overflow-hidden">
+      <div className="flex-1 p-4 overflow-hidden print:p-0">
         <Timeline />
       </div>
 

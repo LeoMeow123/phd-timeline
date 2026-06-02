@@ -1,18 +1,34 @@
 import {
   parseISO, differenceInCalendarDays, addDays, startOfMonth, addMonths,
-  startOfYear, addYears, format, startOfQuarter, addQuarters,
+  startOfYear, addYears, format,
+  startOfWeek, addWeeks,
 } from 'date-fns';
 import type { ZoomLevel, TimelineItem } from './types';
 
+// Trimester helpers (3 quarters per year, 4 months each)
+function startOfTrimester(date: Date): Date {
+  const m = date.getMonth(); // 0-11
+  const tMonth = m - (m % 4);       // 0, 4, 8
+  return new Date(date.getFullYear(), tMonth, 1);
+}
+function addTrimesters(date: Date, n: number): Date {
+  return addMonths(date, n * 4);
+}
+function trimesterIndex(date: Date): number {
+  return Math.floor(date.getMonth() / 4) + 1; // 1, 2, 3
+}
+
 // Pixels per time unit at each zoom level
+const PX_PER_WEEK = 120;
 const PX_PER_MONTH = 120;
-const PX_PER_QUARTER = 200;
+const PX_PER_QUARTER = 260; // 4 months per trimester
 const PX_PER_YEAR = 300;
 
 export function pixelsPerDay(zoom: ZoomLevel): number {
   switch (zoom) {
+    case 'weeks': return PX_PER_WEEK / 7;
     case 'months': return PX_PER_MONTH / 30;
-    case 'quarters': return PX_PER_QUARTER / 91;
+    case 'quarters': return PX_PER_QUARTER / 122; // ~4 months
     case 'years': return PX_PER_YEAR / 365;
   }
 }
@@ -32,15 +48,20 @@ export function xToDate(x: number, programStart: string, zoom: ZoomLevel): Date 
 
 export function snapDate(date: Date, zoom: ZoomLevel): Date {
   switch (zoom) {
+    case 'weeks': {
+      const ws = startOfWeek(date, { weekStartsOn: 1 });
+      const mid = addDays(ws, 3);
+      return date >= mid ? startOfWeek(addWeeks(date, 1), { weekStartsOn: 1 }) : ws;
+    }
     case 'months': {
       const ms = startOfMonth(date);
       const mid = addDays(ms, 15);
       return date >= mid ? startOfMonth(addMonths(date, 1)) : ms;
     }
     case 'quarters': {
-      const qs = startOfQuarter(date);
-      const mid = addDays(qs, 45);
-      return date >= mid ? startOfQuarter(addQuarters(date, 1)) : qs;
+      const qs = startOfTrimester(date);
+      const mid = addDays(qs, 60); // midpoint of 4-month block
+      return date >= mid ? startOfTrimester(addTrimesters(date, 1)) : qs;
     }
     case 'years': {
       const ys = startOfYear(date);
@@ -65,6 +86,18 @@ export function getTimeColumns(
   const cols: TimeColumn[] = [];
 
   switch (zoom) {
+    case 'weeks': {
+      let cur = startOfWeek(start, { weekStartsOn: 1 });
+      const end = addYears(start, durationYears);
+      while (cur < end) {
+        const next = addWeeks(cur, 1);
+        const x = differenceInCalendarDays(cur, start) * ppd;
+        const w = differenceInCalendarDays(next, cur) * ppd;
+        cols.push({ key: format(cur, 'yyyy-ww'), label: format(cur, 'MMM d'), x, width: w });
+        cur = next;
+      }
+      break;
+    }
     case 'months': {
       let cur = startOfMonth(start);
       const end = addYears(start, durationYears);
@@ -78,13 +111,13 @@ export function getTimeColumns(
       break;
     }
     case 'quarters': {
-      let cur = startOfQuarter(start);
+      let cur = startOfTrimester(start);
       const end = addYears(start, durationYears);
       while (cur < end) {
-        const next = addQuarters(cur, 1);
+        const next = addTrimesters(cur, 1);
         const x = differenceInCalendarDays(cur, start) * ppd;
         const w = differenceInCalendarDays(next, cur) * ppd;
-        const q = Math.ceil((cur.getMonth() + 1) / 3);
+        const q = trimesterIndex(cur);
         cols.push({ key: format(cur, 'yyyy') + '-Q' + q, label: `Q${q} ${format(cur, 'yyyy')}`, x, width: w });
         cur = next;
       }
@@ -118,7 +151,6 @@ export function totalTimelineWidth(programStart: string, durationYears: number, 
 export function computeSubRows(items: TimelineItem[]): Map<string, number> {
   const result = new Map<string, number>();
   const sorted = [...items].sort((a, b) => a.start.localeCompare(b.start));
-  // rows[i] = end date of last item in sub-row i
   const rows: string[] = [];
 
   for (const item of sorted) {
@@ -141,4 +173,13 @@ export function computeSubRows(items: TimelineItem[]): Map<string, number> {
 
 export function formatDateShort(d: string): string {
   return format(parseISO(d), 'MMM d, yyyy');
+}
+
+// Returns 'white' or '#1e293b' based on background luminance
+export function textColorForBg(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#1e293b' : 'white';
 }
