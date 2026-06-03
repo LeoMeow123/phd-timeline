@@ -215,6 +215,28 @@ export default function Bar({ item, programStart, zoom, subRow, isSelected, onCl
         </span>
       </div>
 
+      {/* Checkpoint dots on the bar */}
+      {item.checkpoints?.map((cp) => {
+        const cpX = dateToX(cp.date, programStart, zoom) - (left + dragOffsetX);
+        if (cpX < -4 || cpX > width + 4) return null;
+        return (
+          <div
+            key={cp.id}
+            className="absolute pointer-events-none"
+            style={{
+              left: cpX - 4,
+              top: BAR_HEIGHT - 3,
+              width: 8,
+              height: 8,
+              background: cp.done ? 'white' : 'rgba(255,255,255,0.6)',
+              borderRadius: '50%',
+              border: `2px solid ${cp.done ? '#22c55e' : 'rgba(255,255,255,0.9)'}`,
+            }}
+            title={`${cp.label} — ${cp.date}`}
+          />
+        );
+      })}
+
       {/* Label overflow — show above bar when text is truncated */}
       {width < 80 && (
         <div

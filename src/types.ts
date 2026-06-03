@@ -2,17 +2,25 @@ export type ItemType = 'phase' | 'milestone' | 'branch-paper' | 'decision-gate';
 export type ItemStatus = 'planned' | 'in-progress' | 'done';
 export type ZoomLevel = 'years' | 'quarters' | 'months' | 'weeks';
 
+export interface Checkpoint {
+  id: string;
+  label: string;
+  date: string;   // ISO date YYYY-MM-DD
+  done: boolean;
+}
+
 export interface TimelineItem {
   id: string;
   trackId: string;
   name: string;
-  start: string;   // ISO date YYYY-MM-DD
-  end: string;      // ISO date (== start for milestones)
+  start: string;
+  end: string;
   color: string;
   type: ItemType;
   status: ItemStatus;
   note?: string;
   dependsOn?: string[];
+  checkpoints?: Checkpoint[];
 }
 
 export interface Track {
@@ -43,6 +51,9 @@ export interface AppState {
   updateItem: (id: string, i: Partial<TimelineItem>) => void;
   deleteItem: (id: string) => void;
   selectItem: (id: string | null) => void;
+  addCheckpoint: (itemId: string, label: string, date: string) => void;
+  updateCheckpoint: (itemId: string, cpId: string, changes: Partial<Checkpoint>) => void;
+  deleteCheckpoint: (itemId: string, cpId: string) => void;
   importState: (data: { config: ProgramConfig; tracks: Track[]; items: TimelineItem[] }) => void;
 }
 

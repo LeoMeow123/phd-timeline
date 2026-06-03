@@ -23,9 +23,24 @@ function seedData(): { config: ProgramConfig; tracks: Track[]; items: TimelineIt
   ];
 
   const items: TimelineItem[] = [
-    { id: uid(), trackId: 'setup', name: 'Build 60 cages + tune cameras/model', start: d(0), end: d(3), color: '#6366f1', type: 'phase', status: 'in-progress' },
+    {
+      id: uid(), trackId: 'setup', name: 'Build 60 cages + tune cameras/model',
+      start: d(0), end: d(3), color: '#6366f1', type: 'phase', status: 'in-progress',
+      checkpoints: [
+        { id: uid(), label: 'First 20 cages wired', date: d(1), done: false },
+        { id: uid(), label: 'Camera calibration done', date: d(2), done: false },
+      ],
+    },
     { id: uid(), trackId: 'tmaze', name: 'Submit T-maze paper', start: d(2), end: d(2), color: '#3b82f6', type: 'milestone', status: 'planned' },
-    { id: uid(), trackId: 'tmaze', name: 'Add +3mo / +24mo timepoints', start: d(3), end: d(9), color: '#3b82f6', type: 'phase', status: 'planned' },
+    {
+      id: uid(), trackId: 'tmaze', name: 'Add +3mo / +24mo timepoints',
+      start: d(3), end: d(9), color: '#3b82f6', type: 'phase', status: 'planned',
+      checkpoints: [
+        { id: uid(), label: '3mo cohort complete', date: d(5), done: false },
+        { id: uid(), label: '24mo cohort complete', date: d(8), done: false },
+        { id: uid(), label: 'Analysis & figures', date: d(9), done: false },
+      ],
+    },
     { id: uid(), trackId: 'lcaav', name: 'LC enhancement study', start: d(8), end: d(16), color: '#06b6d4', type: 'branch-paper', status: 'planned' },
     { id: uid(), trackId: 'hcm', name: '3mo WT baseline', start: d(1), end: d(4), color: '#10b981', type: 'phase', status: 'planned' },
     { id: uid(), trackId: 'hcm', name: 'WT + Tau recording 3-12mo (n=120)', start: d(4), end: d(28), color: '#10b981', type: 'phase', status: 'planned' },
@@ -87,6 +102,28 @@ export const useStore = create<AppState>()(
         })),
 
         selectItem: (id) => set({ selectedItemId: id }),
+
+        addCheckpoint: (itemId, label, date) => set((s) => ({
+          items: s.items.map((it) =>
+            it.id === itemId
+              ? { ...it, checkpoints: [...(it.checkpoints ?? []), { id: uid(), label, date, done: false }] }
+              : it,
+          ),
+        })),
+        updateCheckpoint: (itemId, cpId, changes) => set((s) => ({
+          items: s.items.map((it) =>
+            it.id === itemId
+              ? { ...it, checkpoints: (it.checkpoints ?? []).map((cp) => cp.id === cpId ? { ...cp, ...changes } : cp) }
+              : it,
+          ),
+        })),
+        deleteCheckpoint: (itemId, cpId) => set((s) => ({
+          items: s.items.map((it) =>
+            it.id === itemId
+              ? { ...it, checkpoints: (it.checkpoints ?? []).filter((cp) => cp.id !== cpId) }
+              : it,
+          ),
+        })),
 
         importState: (data) => set({
           config: data.config,
