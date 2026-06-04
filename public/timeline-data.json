@@ -1,0 +1,258 @@
+{
+  "config": {
+    "startDate": "2026-06-01",
+    "durationYears": 4
+  },
+  "tracks": [
+    {
+      "id": "setup",
+      "name": "Setup",
+      "color": "#6366f1",
+      "collapsed": false
+    },
+    {
+      "id": "tmaze",
+      "name": "T-maze",
+      "color": "#3b82f6",
+      "collapsed": false
+    },
+    {
+      "id": "lcaav",
+      "name": "LC-AAV",
+      "color": "#06b6d4",
+      "collapsed": false
+    },
+    {
+      "id": "hcm",
+      "name": "Home-cage monitoring",
+      "color": "#10b981",
+      "collapsed": false
+    },
+    {
+      "id": "drinking",
+      "name": "Drinking branch",
+      "color": "#f59e0b",
+      "collapsed": false
+    },
+    {
+      "id": "multiomics",
+      "name": "Multiomics",
+      "color": "#8b5cf6",
+      "collapsed": false
+    },
+    {
+      "id": "als",
+      "name": "ALS",
+      "color": "#ec4899",
+      "collapsed": false
+    },
+    {
+      "id": "milestones",
+      "name": "Milestones",
+      "color": "#ef4444",
+      "collapsed": false
+    }
+  ],
+  "items": [
+    {
+      "id": "id-1780443088459-1",
+      "trackId": "setup",
+      "name": "Build 60 cages + tune cameras/model",
+      "start": "2026-06-01",
+      "end": "2026-09-01",
+      "color": "#6366f1",
+      "type": "phase",
+      "status": "in-progress",
+      "checkpoints": [
+        {
+          "id": "id-1780531108310-18",
+          "label": "Computer Benchmark",
+          "date": "2026-06-03",
+          "done": false
+        },
+        {
+          "id": "id-1780531121352-19",
+          "label": "Setup AD meeting with Talmo and Kuo-Fen",
+          "date": "2026-06-03",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "id-1780443088460-2",
+      "trackId": "tmaze",
+      "name": "Submit T-maze paper",
+      "start": "2026-11-01",
+      "end": "2026-11-01",
+      "color": "#3b82f6",
+      "type": "milestone",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-3",
+      "trackId": "tmaze",
+      "name": "Add +3mo / +24mo timepoints",
+      "start": "2026-06-01",
+      "end": "2026-10-01",
+      "color": "#3b82f6",
+      "type": "phase",
+      "status": "planned",
+      "checkpoints": [
+        {
+          "id": "id-1780532032545-21",
+          "label": "24&3mo WT",
+          "date": "2026-06-16",
+          "done": false
+        },
+        {
+          "id": "id-1780532050850-22",
+          "label": "24mo Tau",
+          "date": "2026-07-01",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "id-1780443088460-4",
+      "trackId": "lcaav",
+      "name": "LC enhancement study",
+      "start": "2026-06-01",
+      "end": "2027-02-01",
+      "color": "#06b6d4",
+      "type": "branch-paper",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-5",
+      "trackId": "hcm",
+      "name": "Home Cage",
+      "start": "2026-06-01",
+      "end": "2028-10-01",
+      "color": "#06b6d4",
+      "type": "phase",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-6",
+      "trackId": "hcm",
+      "name": "WT + Tau recording 3-12mo (n=120)",
+      "start": "2026-09-30",
+      "end": "2028-09-30",
+      "color": "#10b981",
+      "type": "phase",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-7",
+      "trackId": "hcm",
+      "name": "CNS #1 — early detection",
+      "start": "2028-11-30",
+      "end": "2028-11-30",
+      "color": "#10b981",
+      "type": "decision-gate",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-8",
+      "trackId": "drinking",
+      "name": "HY thirst gene + drinking (new PhD lead)",
+      "start": "2026-06-01",
+      "end": "2028-07-31",
+      "color": "#f59e0b",
+      "type": "branch-paper",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-9",
+      "trackId": "multiomics",
+      "name": "snRNA+snATAC analysis 1.24M cells",
+      "start": "2027-01-01",
+      "end": "2029-03-31",
+      "color": "#8b5cf6",
+      "type": "phase",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-10",
+      "trackId": "multiomics",
+      "name": "CNS #2 — divergence-not-acceleration",
+      "start": "2029-09-30",
+      "end": "2029-09-30",
+      "color": "#8b5cf6",
+      "type": "milestone",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-11",
+      "trackId": "als",
+      "name": "Project ALS",
+      "start": "2026-06-01",
+      "end": "2027-07-31",
+      "color": "#ec4899",
+      "type": "phase",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "id": "id-1780443088460-12",
+      "trackId": "milestones",
+      "name": "Defense / graduate",
+      "start": "2030-03-31",
+      "end": "2030-03-31",
+      "color": "#ef4444",
+      "type": "milestone",
+      "status": "planned",
+      "checkpoints": []
+    },
+    {
+      "name": "3-6mo WT recording",
+      "trackId": "hcm",
+      "start": "2026-01-01",
+      "end": "2026-01-01",
+      "color": "#3b82f6",
+      "type": "phase",
+      "status": "planned",
+      "dependsOn": [],
+      "id": "id-1780532808160-23"
+    },
+    {
+      "name": "3mo WT recording",
+      "trackId": "hcm",
+      "start": "2026-06-16",
+      "end": "2026-09-16",
+      "color": "#3b82f6",
+      "type": "phase",
+      "status": "planned",
+      "id": "id-1780533699477-18"
+    },
+    {
+      "name": "Minor Prop",
+      "trackId": "milestones",
+      "start": "2027-01-04",
+      "end": "2027-06-04",
+      "color": "#ef4444",
+      "type": "phase",
+      "status": "planned",
+      "dependsOn": [],
+      "id": "id-1780533893836-19"
+    },
+    {
+      "name": "Advance Committee Meeting",
+      "trackId": "milestones",
+      "start": "2028-06-04",
+      "end": "2028-09-04",
+      "color": "#ef4444",
+      "type": "phase",
+      "status": "planned",
+      "id": "id-1780533927034-20"
+    }
+  ]
+}
