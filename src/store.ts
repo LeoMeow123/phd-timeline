@@ -135,6 +135,18 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'phd-timeline-storage',
+      version: 2,
+      migrate: (persisted: any, version: number) => {
+        // Upgrade old data: ensure all items have status + checkpoints fields
+        if (persisted && persisted.items) {
+          persisted.items = persisted.items.map((item: any) => ({
+            ...item,
+            status: item.status ?? 'planned',
+            checkpoints: item.checkpoints ?? [],
+          }));
+        }
+        return persisted;
+      },
     },
   ),
 );
