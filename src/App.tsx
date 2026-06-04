@@ -141,13 +141,13 @@ export default function App() {
 
         <button
           className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          onClick={() => setShowAddItem(true)}
+          onClick={() => { selectItem(null); setShowAddItem(true); }}
         >
           + Project
         </button>
         <button
           className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-          onClick={() => setShowAddTrack(true)}
+          onClick={() => { selectItem(null); setShowAddTrack(true); }}
         >
           + Track
         </button>
@@ -198,12 +198,12 @@ export default function App() {
       </div>
 
       {/* Modals */}
-      {showAddItem && <ItemForm onClose={() => setShowAddItem(false)} />}
+      {showAddItem && !selectedItem && <ItemForm onClose={() => setShowAddItem(false)} />}
       {showAddTrack && <TrackForm onClose={() => setShowAddTrack(false)} />}
       {selectedItem && (
         <ItemForm
           editItem={selectedItem}
-          onClose={() => { selectItem(null); }}
+          onClose={() => { selectItem(null); setShowAddItem(false); }}
         />
       )}
     </div>

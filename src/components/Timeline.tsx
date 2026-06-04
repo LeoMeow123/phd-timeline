@@ -248,6 +248,7 @@ export default function Timeline() {
   const { config, tracks, items, zoom, selectedItemId, updateItem, selectItem, updateTrack, deleteTrack, reorderTracks } = useStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
+  const scrollSourceRef = useRef<'left' | 'right' | null>(null);
 
   // Local UI state for expanded items in left panel
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -379,10 +380,22 @@ export default function Timeline() {
     if (oldIndex !== -1 && newIndex !== -1) reorderTracks(oldIndex, newIndex);
   }, [tracks, reorderTracks]);
 
-  const handleScroll = () => {
+  const handleRightScroll = () => {
+    if (scrollSourceRef.current === 'left') return;
+    scrollSourceRef.current = 'right';
     if (scrollRef.current && headerScrollRef.current) {
       headerScrollRef.current.scrollTop = scrollRef.current.scrollTop;
     }
+    requestAnimationFrame(() => { scrollSourceRef.current = null; });
+  };
+
+  const handleLeftScroll = () => {
+    if (scrollSourceRef.current === 'right') return;
+    scrollSourceRef.current = 'left';
+    if (scrollRef.current && headerScrollRef.current) {
+      scrollRef.current.scrollTop = headerScrollRef.current.scrollTop;
+    }
+    requestAnimationFrame(() => { scrollSourceRef.current = null; });
   };
 
   const handleDeleteTrack = (trackId: string, trackName: string) => {
@@ -394,11 +407,11 @@ export default function Timeline() {
   return (
     <div className="flex flex-1 overflow-hidden bg-white border border-gray-200 rounded-lg print-timeline">
       {/* Left panel — track tree */}
-      <div className="flex-shrink-0 border-r border-gray-200 bg-gray-50" style={{ width: HEADER_WIDTH }}>
-        <div className="border-b border-gray-200 flex items-center justify-center text-xs text-gray-400 font-medium" style={{ height: AXIS_HEIGHT }}>
+      <div className="flex-shrink-0 border-r border-gray-200 bg-gray-50 flex flex-col" style={{ width: HEADER_WIDTH }}>
+        <div className="border-b border-gray-200 flex items-center justify-center text-xs text-gray-400 font-medium flex-shrink-0" style={{ height: AXIS_HEIGHT }}>
           Projects
         </div>
-        <div ref={headerScrollRef} className="overflow-hidden" style={{ maxHeight: `calc(100vh - ${AXIS_HEIGHT + 120}px)` }}>
+        <div ref={headerScrollRef} className="flex-1 min-h-0 overflow-y-auto left-panel-scroll" onScroll={handleLeftScroll}>
           <DndContext sensors={sensors} onDragEnd={handleTrackDragEnd}>
             <SortableContext items={tracks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               {tracks.map((track) => {
@@ -428,7 +441,7 @@ export default function Timeline() {
 
       {/* Scrollable timeline */}
       <DndContext sensors={sensors} onDragEnd={handleBarDragEnd}>
-        <div ref={scrollRef} className="flex-1 overflow-auto timeline-scroll" onScroll={handleScroll}>
+        <div ref={scrollRef} className="flex-1 overflow-auto timeline-scroll" onScroll={handleRightScroll}>
           <div style={{ width: totalWidth, minWidth: '100%' }}>
             {/* Time axis */}
             <div className="sticky top-0 z-20 bg-white border-b border-gray-200" style={{ height: AXIS_HEIGHT }}>
@@ -458,12 +471,12 @@ export default function Timeline() {
               {todayX >= 0 && todayX <= totalWidth && (
                 <div className="absolute top-0 z-10 pointer-events-none" style={{ left: todayX, height: totalLaneHeight }}>
                   <div className="w-0.5 h-full bg-red-400 opacity-60" />
-                  <div className="absolute -top-0 -left-3 bg-red-400 text-white text-[10px] px-1 rounded-b">Today</div>
+                  <div className="absolute top-0 -left-3 bg-red-400 text-white text-[10px] px-1 rounded-b">Today</div>
                 </div>
               )}
 
               {arrows.length > 0 && (
-                <svg className="absolute top-0 left-0 pointer-events-none z-5" style={{ width: totalWidth, height: totalLaneHeight }}>
+                <svg className="absolute top-0 left-0 pointer-events-none z-[5]" style={{ width: totalWidth, height: totalLaneHeight }}>
                   <defs>
                     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
                       <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
