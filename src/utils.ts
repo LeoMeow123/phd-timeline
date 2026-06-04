@@ -33,20 +33,22 @@ export function pixelsPerDay(zoom: ZoomLevel): number {
   }
 }
 
+export const TIMELINE_PAD = 40;
+
 export function dateToX(date: string | Date, programStart: string, zoom: ZoomLevel): number {
   const d = typeof date === 'string' ? parseISO(date) : date;
   const start = parseISO(programStart);
   const days = differenceInCalendarDays(d, start);
-  return days * pixelsPerDay(zoom);
+  return days * pixelsPerDay(zoom) + TIMELINE_PAD;
 }
 
 export function xToDate(x: number, programStart: string, zoom: ZoomLevel): Date {
   const start = parseISO(programStart);
-  const days = Math.round(x / pixelsPerDay(zoom));
+  const days = Math.round((x - TIMELINE_PAD) / pixelsPerDay(zoom));
   return addDays(start, days);
 }
 
-export function snapDate(date: Date, zoom: ZoomLevel): Date {
+export function snapDate(date: Date, zoom: ZoomLevel, programStart: string): Date {
   switch (zoom) {
     case 'weeks': {
       const ws = startOfWeek(date, { weekStartsOn: 1 });
@@ -59,14 +61,28 @@ export function snapDate(date: Date, zoom: ZoomLevel): Date {
       return date >= mid ? startOfMonth(addMonths(date, 1)) : ms;
     }
     case 'quarters': {
-      const qs = startOfTrimester(date);
-      const mid = addDays(qs, 60); // midpoint of 4-month block
-      return date >= mid ? startOfTrimester(addTrimesters(date, 1)) : qs;
+      const ps = parseISO(programStart);
+      let qStart = new Date(ps);
+      if (date >= ps) {
+        while (addMonths(qStart, 4) <= date) qStart = addMonths(qStart, 4);
+      } else {
+        while (qStart > date) qStart = addMonths(qStart, -4);
+      }
+      const qEnd = addMonths(qStart, 4);
+      const mid = addDays(qStart, Math.floor(differenceInCalendarDays(qEnd, qStart) / 2));
+      return date >= mid ? qEnd : qStart;
     }
     case 'years': {
-      const ys = startOfYear(date);
-      const mid = addDays(ys, 182);
-      return date >= mid ? startOfYear(addYears(date, 1)) : ys;
+      const ps = parseISO(programStart);
+      let yStart = new Date(ps);
+      if (date >= ps) {
+        while (addYears(yStart, 1) <= date) yStart = addYears(yStart, 1);
+      } else {
+        while (yStart > date) yStart = addYears(yStart, -1);
+      }
+      const yEnd = addYears(yStart, 1);
+      const mid = addDays(yStart, Math.floor(differenceInCalendarDays(yEnd, yStart) / 2));
+      return date >= mid ? yEnd : yStart;
     }
   }
 }
@@ -91,7 +107,7 @@ export function getTimeColumns(
       const end = addYears(start, durationYears);
       while (cur < end) {
         const next = addWeeks(cur, 1);
-        const x = differenceInCalendarDays(cur, start) * ppd;
+        const x = differenceInCalendarDays(cur, start) * ppd + TIMELINE_PAD;
         const w = differenceInCalendarDays(next, cur) * ppd;
         cols.push({ key: format(cur, 'yyyy-ww'), label: format(cur, 'MMM d'), x, width: w });
         cur = next;
@@ -103,7 +119,7 @@ export function getTimeColumns(
       const end = addYears(start, durationYears);
       while (cur < end) {
         const next = addMonths(cur, 1);
-        const x = differenceInCalendarDays(cur, start) * ppd;
+        const x = differenceInCalendarDays(cur, start) * ppd + TIMELINE_PAD;
         const w = differenceInCalendarDays(next, cur) * ppd;
         cols.push({ key: format(cur, 'yyyy-MM'), label: format(cur, 'MMM yyyy'), x, width: w });
         cur = next;
@@ -111,28 +127,31 @@ export function getTimeColumns(
       break;
     }
     case 'quarters': {
-      let cur = startOfTrimester(start);
       const end = addYears(start, durationYears);
+      let cur = new Date(start);
+      let yearNum = 1;
+      let qNum = 1;
       while (cur < end) {
-        const next = addTrimesters(cur, 1);
-        const x = differenceInCalendarDays(cur, start) * ppd;
+        const next = addMonths(cur, 4);
+        const x = differenceInCalendarDays(cur, start) * ppd + TIMELINE_PAD;
         const w = differenceInCalendarDays(next, cur) * ppd;
-        const q = trimesterIndex(cur);
-        cols.push({ key: format(cur, 'yyyy') + '-Q' + q, label: `Q${q} ${format(cur, 'yyyy')}`, x, width: w });
+        cols.push({ key: `Y${yearNum}-Q${qNum}`, label: `Y${yearNum} Q${qNum}`, x, width: w });
         cur = next;
+        qNum++;
+        if (qNum > 3) { qNum = 1; yearNum++; }
       }
       break;
     }
     case 'years': {
-      let cur = startOfYear(start);
-      const end = addYears(start, durationYears + 1);
+      const end = addYears(start, durationYears);
+      let cur = new Date(start);
       let yearNum = 0;
       while (cur < end) {
         yearNum++;
         const next = addYears(cur, 1);
-        const x = differenceInCalendarDays(cur, start) * ppd;
+        const x = differenceInCalendarDays(cur, start) * ppd + TIMELINE_PAD;
         const w = differenceInCalendarDays(next, cur) * ppd;
-        cols.push({ key: format(cur, 'yyyy'), label: `Year ${yearNum} (${format(cur, 'yyyy')})`, x, width: w });
+        cols.push({ key: `year-${yearNum}`, label: `Year ${yearNum}`, x, width: w });
         cur = next;
       }
       break;
@@ -144,7 +163,7 @@ export function getTimeColumns(
 export function totalTimelineWidth(programStart: string, durationYears: number, zoom: ZoomLevel): number {
   const start = parseISO(programStart);
   const end = addYears(start, durationYears);
-  return differenceInCalendarDays(end, start) * pixelsPerDay(zoom);
+  return differenceInCalendarDays(end, start) * pixelsPerDay(zoom) + TIMELINE_PAD * 2;
 }
 
 // Compute sub-row indices for overlapping items within a track

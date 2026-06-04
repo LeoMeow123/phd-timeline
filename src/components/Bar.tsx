@@ -61,10 +61,12 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
   });
 
   let dragOffsetX = 0;
+  let dragOffsetY = 0;
   if (isDragging && transform) {
     const daysDelta = Math.round(transform.x / ppd);
-    const snappedDate = snapDate(addDays(parseISO(item.start), daysDelta), zoom);
+    const snappedDate = snapDate(addDays(parseISO(item.start), daysDelta), zoom, programStart);
     dragOffsetX = differenceInCalendarDays(snappedDate, parseISO(item.start)) * ppd;
+    dragOffsetY = transform.y;
   }
 
   // Compute checkpoint row layout
@@ -88,12 +90,12 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
       const dx = ue.clientX - startX;
       const daysDelta = Math.round(dx / ppd);
       if (side === 'left') {
-        const newStart = snapDate(addDays(parseISO(item.start), daysDelta), zoom);
+        const newStart = snapDate(addDays(parseISO(item.start), daysDelta), zoom, programStart);
         if (newStart <= parseISO(item.end)) {
           onUpdate(item.id, { start: format(newStart, 'yyyy-MM-dd') });
         }
       } else {
-        const newEnd = snapDate(addDays(parseISO(item.end), daysDelta), zoom);
+        const newEnd = snapDate(addDays(parseISO(item.end), daysDelta), zoom, programStart);
         if (newEnd >= parseISO(item.start)) {
           onUpdate(item.id, { end: format(newEnd, 'yyyy-MM-dd') });
         }
@@ -111,17 +113,17 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
   let previewEnd = item.end;
   if (isDragging && transform) {
     const daysDelta = Math.round(transform.x / ppd);
-    const s = snapDate(addDays(parseISO(item.start), daysDelta), zoom);
+    const s = snapDate(addDays(parseISO(item.start), daysDelta), zoom, programStart);
     const dur = differenceInCalendarDays(parseISO(item.end), parseISO(item.start));
     previewStart = format(s, 'yyyy-MM-dd');
     previewEnd = format(addDays(s, dur), 'yyyy-MM-dd');
   }
   if (resizeDelta) {
     if (resizeDelta.side === 'left') {
-      const s = snapDate(addDays(parseISO(item.start), Math.round(resizeDelta.dx / ppd)), zoom);
+      const s = snapDate(addDays(parseISO(item.start), Math.round(resizeDelta.dx / ppd)), zoom, programStart);
       previewStart = format(s, 'yyyy-MM-dd');
     } else {
-      const e = snapDate(addDays(parseISO(item.end), Math.round(resizeDelta.dx / ppd)), zoom);
+      const e = snapDate(addDays(parseISO(item.end), Math.round(resizeDelta.dx / ppd)), zoom, programStart);
       previewEnd = format(e, 'yyyy-MM-dd');
     }
   }
@@ -143,7 +145,7 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
         className="absolute cursor-grab active:cursor-grabbing group"
         style={{
           left: left + dragOffsetX - MILESTONE_SIZE / 2,
-          top: top + (BAR_HEIGHT - MILESTONE_SIZE) / 2,
+          top: top + (BAR_HEIGHT - MILESTONE_SIZE) / 2 + dragOffsetY,
           zIndex: isDragging ? 100 : isSelected ? 50 : 1,
           opacity: isDone ? 0.5 : isDragging ? 0.85 : 1,
         }}
@@ -184,7 +186,7 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
       className="absolute group"
       style={{
         left: left + dragOffsetX,
-        top,
+        top: top + dragOffsetY,
         width: Math.max(width, 4),
         height: BAR_HEIGHT + cpTotalHeight,
         zIndex: isDragging ? 100 : isSelected ? 50 : 1,

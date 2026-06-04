@@ -1,5 +1,5 @@
 import { useRef, useMemo, useCallback, useState } from 'react';
-import { DndContext, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
+import { DndContext, PointerSensor, useSensor, useSensors, useDroppable, pointerWithin } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { DragEndEvent } from '@dnd-kit/core';
@@ -355,7 +355,7 @@ export default function Timeline() {
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     const daysDelta = Math.round(delta.x / ppd);
-    const newStart = snapDate(addDays(parseISO(item.start), daysDelta), zoom);
+    const newStart = snapDate(addDays(parseISO(item.start), daysDelta), zoom, config.startDate);
     const dur = differenceInCalendarDays(parseISO(item.end), parseISO(item.start));
     const newEnd = addDays(newStart, dur);
     const changes: Partial<TimelineItem> = {
@@ -440,7 +440,7 @@ export default function Timeline() {
       </div>
 
       {/* Scrollable timeline */}
-      <DndContext sensors={sensors} onDragEnd={handleBarDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleBarDragEnd}>
         <div ref={scrollRef} className="flex-1 overflow-auto timeline-scroll" onScroll={handleRightScroll}>
           <div style={{ width: totalWidth, minWidth: '100%' }}>
             {/* Time axis */}

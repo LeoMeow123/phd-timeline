@@ -8,7 +8,7 @@ let _id = 0;
 const uid = () => `id-${Date.now()}-${++_id}`;
 
 function seedData(): { config: ProgramConfig; tracks: Track[]; items: TimelineItem[] } {
-  const start = new Date('2026-06-01');
+  const start = new Date('2026-10-01');
   const d = (monthsFromStart: number) => format(addMonths(start, monthsFromStart), 'yyyy-MM-dd');
 
   const tracks: Track[] = [
@@ -53,7 +53,7 @@ function seedData(): { config: ProgramConfig; tracks: Track[]; items: TimelineIt
   ];
 
   return {
-    config: { startDate: '2026-06-01', durationYears: 4 },
+    config: { startDate: '2026-10-01', durationYears: 4 },
     tracks,
     items,
   };
