@@ -4,31 +4,40 @@ import { format, parseISO, addDays, differenceInCalendarDays } from 'date-fns';
 import type { TimelineItem, ZoomLevel } from '../types';
 import { pixelsPerDay, snapDate, dateToX, textColorForBg } from '../utils';
 
-const BAR_HEIGHT = 28;
+export const BAR_HEIGHT = 28;
+export const CP_ROW_HEIGHT = 18;
+export const ROW_GAP = 4;
+
 const MILESTONE_SIZE = 20;
 const HANDLE_WIDTH = 8;
+
+// Row pitch depends on whether any item in the track has checkpoints
+export function rowPitch(hasCheckpoints: boolean): number {
+  return BAR_HEIGHT + (hasCheckpoints ? CP_ROW_HEIGHT : 0) + ROW_GAP;
+}
 
 interface BarProps {
   item: TimelineItem;
   programStart: string;
   zoom: ZoomLevel;
   subRow: number;
+  rowHeight: number; // total row pitch for this track
   isSelected: boolean;
   onClick: () => void;
   onUpdate: (id: string, changes: Partial<TimelineItem>) => void;
 }
 
-export default function Bar({ item, programStart, zoom, subRow, isSelected, onClick, onUpdate }: BarProps) {
+export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSelected, onClick, onUpdate }: BarProps) {
   const ppd = pixelsPerDay(zoom);
   const isMilestone = item.type === 'milestone' || item.type === 'decision-gate';
   const isDone = item.status === 'done';
   const isInProgress = item.status === 'in-progress';
+  const hasCheckpoints = (item.checkpoints?.length ?? 0) > 0;
 
   const baseLeft = dateToX(item.start, programStart, zoom);
   const baseRight = dateToX(item.end, programStart, zoom);
   const baseWidth = Math.max(baseRight - baseLeft, isMilestone ? 0 : 4);
 
-  // Resize state
   const [resizeDelta, setResizeDelta] = useState<{ side: 'left' | 'right'; dx: number } | null>(null);
 
   let left = baseLeft;
@@ -43,7 +52,7 @@ export default function Bar({ item, programStart, zoom, subRow, isSelected, onCl
     if (width < 4) width = 4;
   }
 
-  const top = subRow * (BAR_HEIGHT + 4) + 4;
+  const top = subRow * rowHeight + ROW_GAP;
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `bar-${item.id}`,
@@ -110,7 +119,6 @@ export default function Bar({ item, programStart, zoom, subRow, isSelected, onCl
 
   const textColor = textColorForBg(item.color);
 
-  // Status indicator dot
   const statusDot = isDone ? (
     <span className="mr-1 text-[10px] leading-none" style={{ color: textColor }}>&#10003;</span>
   ) : isInProgress ? (
@@ -134,27 +142,15 @@ export default function Bar({ item, programStart, zoom, subRow, isSelected, onCl
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        <div
-          className="transition-shadow"
-          style={{
-            width: MILESTONE_SIZE,
-            height: MILESTONE_SIZE,
-            background: item.color,
-            transform: 'rotate(45deg)',
-            borderRadius: 3,
-            boxShadow: isSelected ? `0 0 0 3px ${item.color}40` : undefined,
-          }}
-        />
-        <div
-          className="absolute whitespace-nowrap text-xs font-medium text-gray-700 pointer-events-none"
-          style={{
-            left: MILESTONE_SIZE + 4,
-            top: 0,
-            lineHeight: `${MILESTONE_SIZE}px`,
-            textDecoration: isDone ? 'line-through' : undefined,
-            opacity: isDone ? 0.6 : 1,
-          }}
-        >
+        <div className="transition-shadow" style={{
+          width: MILESTONE_SIZE, height: MILESTONE_SIZE, background: item.color,
+          transform: 'rotate(45deg)', borderRadius: 3,
+          boxShadow: isSelected ? `0 0 0 3px ${item.color}40` : undefined,
+        }} />
+        <div className="absolute whitespace-nowrap text-xs font-medium text-gray-700 pointer-events-none" style={{
+          left: MILESTONE_SIZE + 4, top: 0, lineHeight: `${MILESTONE_SIZE}px`,
+          textDecoration: isDone ? 'line-through' : undefined, opacity: isDone ? 0.6 : 1,
+        }}>
           {isDone && <span className="mr-0.5">&#10003;</span>}
           {item.name}
         </div>
@@ -181,7 +177,7 @@ export default function Bar({ item, programStart, zoom, subRow, isSelected, onCl
         left: left + dragOffsetX,
         top,
         width: Math.max(width, 4),
-        height: BAR_HEIGHT,
+        height: BAR_HEIGHT + (hasCheckpoints ? CP_ROW_HEIGHT : 0),
         zIndex: isDragging ? 100 : isSelected ? 50 : 1,
         opacity: isDone ? 0.5 : isDragging ? 0.85 : 1,
       }}
@@ -189,12 +185,14 @@ export default function Bar({ item, programStart, zoom, subRow, isSelected, onCl
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
-      {/* Bar body */}
+      {/* Main bar body */}
       <div
         {...attributes}
         {...listeners}
-        className="w-full h-full rounded-md cursor-grab active:cursor-grabbing transition-shadow overflow-hidden flex items-center px-2"
+        className="rounded-md cursor-grab active:cursor-grabbing transition-shadow overflow-hidden flex items-center px-2"
         style={{
+          width: '100%',
+          height: BAR_HEIGHT,
           background: barBg,
           boxShadow: isSelected
             ? `0 0 0 3px ${item.color}40, 0 2px 4px rgba(0,0,0,0.1)`
@@ -204,64 +202,74 @@ export default function Bar({ item, programStart, zoom, subRow, isSelected, onCl
         }}
       >
         {statusDot}
-        <span
-          className="text-xs font-medium truncate drop-shadow-sm select-none"
-          style={{
-            color: textColor,
-            textDecoration: isDone ? 'line-through' : undefined,
-          }}
-        >
+        <span className="text-xs font-medium truncate drop-shadow-sm select-none"
+          style={{ color: textColor, textDecoration: isDone ? 'line-through' : undefined }}>
           {item.name}
         </span>
       </div>
 
-      {/* Checkpoint dots on the bar */}
-      {item.checkpoints?.map((cp) => {
-        const cpX = dateToX(cp.date, programStart, zoom) - (left + dragOffsetX);
-        if (cpX < -4 || cpX > width + 4) return null;
-        return (
-          <div
-            key={cp.id}
-            className="absolute pointer-events-none"
-            style={{
-              left: cpX - 4,
-              top: BAR_HEIGHT - 3,
-              width: 8,
-              height: 8,
-              background: cp.done ? 'white' : 'rgba(255,255,255,0.6)',
-              borderRadius: '50%',
-              border: `2px solid ${cp.done ? '#22c55e' : 'rgba(255,255,255,0.9)'}`,
-            }}
-            title={`${cp.label} — ${cp.date}`}
-          />
-        );
-      })}
+      {/* Checkpoint sub-bar row */}
+      {hasCheckpoints && (
+        <div className="relative" style={{ height: CP_ROW_HEIGHT, marginTop: 1 }}>
+          {/* Thin connecting line */}
+          <div className="absolute" style={{
+            left: 0, right: 0, top: 3, height: 1,
+            background: `${item.color}30`,
+          }} />
+          {/* Checkpoint markers */}
+          {item.checkpoints!.map((cp) => {
+            const cpX = dateToX(cp.date, programStart, zoom) - (left + dragOffsetX);
+            return (
+              <div
+                key={cp.id}
+                className="absolute flex flex-col items-center"
+                style={{ left: cpX - 1, top: 0 }}
+              >
+                {/* Vertical tick */}
+                <div style={{
+                  width: 2, height: 7,
+                  background: cp.done ? '#22c55e' : item.color,
+                  borderRadius: 1,
+                }} />
+                {/* Label */}
+                <div
+                  className="whitespace-nowrap pointer-events-none"
+                  style={{
+                    fontSize: 8,
+                    lineHeight: '10px',
+                    color: cp.done ? '#22c55e' : '#6b7280',
+                    fontWeight: cp.done ? 600 : 500,
+                    textDecoration: cp.done ? 'line-through' : undefined,
+                    marginTop: 0,
+                  }}
+                >
+                  {cp.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Label overflow — show above bar when text is truncated */}
+      {/* Label overflow */}
       {width < 80 && (
-        <div
-          className="absolute whitespace-nowrap text-[10px] font-medium text-gray-600 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ top: -14, left: 0 }}
-        >
+        <div className="absolute whitespace-nowrap text-[10px] font-medium text-gray-600 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ top: -14, left: 0 }}>
           {item.name}
         </div>
       )}
 
       {/* Left resize handle */}
-      <div
-        className="absolute left-0 top-0 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ width: HANDLE_WIDTH }}
-        onPointerDown={(e) => startResize(e, 'left')}
-      >
+      <div className="absolute left-0 top-0 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ width: HANDLE_WIDTH, height: BAR_HEIGHT }}
+        onPointerDown={(e) => startResize(e, 'left')}>
         <div className="w-1 h-3 bg-white/80 rounded-full absolute left-1 top-1/2 -translate-y-1/2" />
       </div>
 
       {/* Right resize handle */}
-      <div
-        className="absolute right-0 top-0 h-full cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ width: HANDLE_WIDTH }}
-        onPointerDown={(e) => startResize(e, 'right')}
-      >
+      <div className="absolute right-0 top-0 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ width: HANDLE_WIDTH, height: BAR_HEIGHT }}
+        onPointerDown={(e) => startResize(e, 'right')}>
         <div className="w-1 h-3 bg-white/80 rounded-full absolute right-1 top-1/2 -translate-y-1/2" />
       </div>
 

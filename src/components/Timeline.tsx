@@ -7,11 +7,10 @@ import { parseISO, addDays, differenceInCalendarDays, format } from 'date-fns';
 import { useStore } from '../store';
 import { getTimeColumns, totalTimelineWidth, computeSubRows, pixelsPerDay, dateToX, snapDate, formatDateShort } from '../utils';
 import type { Track as TrackType, TimelineItem } from '../types';
-import Bar from './Bar';
+import Bar, { BAR_HEIGHT, CP_ROW_HEIGHT, ROW_GAP, rowPitch } from './Bar';
 
 const HEADER_WIDTH = 280;
 const AXIS_HEIGHT = 40;
-const BAR_HEIGHT = 28;
 const MIN_LANE_HEIGHT = 40;
 
 function TrackDropZone({ track, children, laneHeight }: { track: TrackType; children: React.ReactNode; laneHeight: number }) {
@@ -229,8 +228,10 @@ function DependencyArrow({
 }) {
   const fromX = dateToX(from.end, programStart, zoom as any);
   const toX = dateToX(to.start, programStart, zoom as any);
-  const fromY = fromTrackOffset + fromSubRow * (BAR_HEIGHT + 4) + 4 + BAR_HEIGHT / 2;
-  const toY = toTrackOffset + toSubRow * (BAR_HEIGHT + 4) + 4 + BAR_HEIGHT / 2;
+  // Use a generous pitch for arrow positioning
+  const pitch = rowPitch(true);
+  const fromY = fromTrackOffset + fromSubRow * pitch + ROW_GAP + BAR_HEIGHT / 2;
+  const toY = toTrackOffset + toSubRow * pitch + ROW_GAP + BAR_HEIGHT / 2;
   const midX = (fromX + toX) / 2;
 
   return (
@@ -275,6 +276,17 @@ export default function Timeline() {
     return map;
   }, [tracks, items]);
 
+  // Check which tracks have items with checkpoints (need taller rows)
+  const trackHasCheckpoints = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const track of tracks) {
+      const td = trackData.get(track.id);
+      const hasCp = td ? td.items.some((i) => (i.checkpoints?.length ?? 0) > 0) : false;
+      map.set(track.id, hasCp);
+    }
+    return map;
+  }, [tracks, trackData]);
+
   const { laneHeights, trackOffsets } = useMemo(() => {
     const laneHeights = new Map<string, number>();
     const trackOffsets = new Map<string, number>();
@@ -282,13 +294,15 @@ export default function Timeline() {
     for (const track of tracks) {
       const td = trackData.get(track.id);
       const rows = td ? td.maxRow + 1 : 1;
-      const h = track.collapsed ? 24 : Math.max(MIN_LANE_HEIGHT, rows * (BAR_HEIGHT + 4) + 8);
+      const hasCp = trackHasCheckpoints.get(track.id) ?? false;
+      const pitch = rowPitch(hasCp);
+      const h = track.collapsed ? 24 : Math.max(MIN_LANE_HEIGHT, rows * pitch + 8);
       laneHeights.set(track.id, h);
       trackOffsets.set(track.id, y);
       y += h;
     }
     return { laneHeights, trackOffsets };
-  }, [tracks, trackData]);
+  }, [tracks, trackData, trackHasCheckpoints]);
 
   const arrows = useMemo(() => {
     const result: {
@@ -473,7 +487,9 @@ export default function Timeline() {
                     ) : (
                       td.items.map((item) => (
                         <Bar key={item.id} item={item} programStart={config.startDate} zoom={zoom}
-                          subRow={td.subRows.get(item.id) ?? 0} isSelected={selectedItemId === item.id}
+                          subRow={td.subRows.get(item.id) ?? 0}
+                          rowHeight={rowPitch(trackHasCheckpoints.get(track.id) ?? false)}
+                          isSelected={selectedItemId === item.id}
                           onClick={() => selectItem(item.id)} onUpdate={updateItem}
                         />
                       ))
