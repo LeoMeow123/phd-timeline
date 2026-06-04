@@ -1,9 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore } from './store';
 import type { ZoomLevel } from './types';
 import { COLORS } from './types';
 import Timeline from './components/Timeline';
 import ItemForm from './components/ItemForm';
+import { getSyncConfig, setSyncConfig, loadFromCloud, saveToCloud } from './sync';
+import type { SyncConfig } from './sync';
 
 function ZoomControl() {
   const { zoom, setZoom } = useStore();
@@ -87,13 +89,118 @@ function TrackForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+function SyncSetupModal({ onClose }: { onClose: () => void }) {
+  const existing = getSyncConfig();
+  const [token, setToken] = useState(existing?.token ?? '');
+  const [owner, setOwner] = useState(existing?.owner ?? 'LeoMeow123');
+  const [repo, setRepo] = useState(existing?.repo ?? 'phd-timeline');
+
+  const handleSave = () => {
+    if (!token.trim()) return;
+    setSyncConfig({ token: token.trim(), owner: owner.trim(), repo: repo.trim() });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-gray-800">Cloud Sync Setup</h3>
+        <p className="text-xs text-gray-500">
+          Create a GitHub token at Settings &gt; Developer settings &gt; Fine-grained tokens.
+          Give it <strong>Contents</strong> read+write on your repo.
+        </p>
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">GitHub Token</label>
+          <input
+            type="password"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="github_pat_..."
+            autoFocus
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Owner</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Repo</label>
+            <input
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700"
+          >
+            Save
+          </button>
+          <button
+            onClick={onClose}
+            className="bg-gray-100 text-gray-600 rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const { config, tracks, items, selectedItemId, selectItem, importState, setConfig } = useStore();
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAddTrack, setShowAddTrack] = useState(false);
+  const [showSyncSetup, setShowSyncSetup] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'loading' | 'done' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedItem = selectedItemId ? items.find((i) => i.id === selectedItemId) ?? null : null;
+
+  // Auto-load from cloud on first visit (no local data yet)
+  useEffect(() => {
+    const hasLocal = localStorage.getItem('phd-timeline-storage');
+    if (!hasLocal) {
+      loadFromCloud().then((data) => {
+        if (data) importState(data);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleCloudSave = async () => {
+    const cfg = getSyncConfig();
+    if (!cfg?.token) {
+      setShowSyncSetup(true);
+      return;
+    }
+    setSyncStatus('saving');
+    const ok = await saveToCloud({ config, tracks, items });
+    setSyncStatus(ok ? 'done' : 'error');
+    setTimeout(() => setSyncStatus('idle'), 2000);
+  };
+
+  const handleCloudLoad = async () => {
+    setSyncStatus('loading');
+    const data = await loadFromCloud();
+    if (data) {
+      importState(data);
+      setSyncStatus('done');
+    } else {
+      setSyncStatus('error');
+    }
+    setTimeout(() => setSyncStatus('idle'), 2000);
+  };
 
   const handleExport = () => {
     const data = JSON.stringify({ config, tracks, items }, null, 2);
@@ -129,6 +236,14 @@ export default function App() {
   const handlePrint = () => {
     window.print();
   };
+
+  const syncLabel =
+    syncStatus === 'saving' ? 'Saving...' :
+    syncStatus === 'loading' ? 'Loading...' :
+    syncStatus === 'done' ? 'Synced' :
+    syncStatus === 'error' ? 'Failed' :
+    'Save';
+  const loadLabel = syncStatus === 'loading' ? '...' : 'Load';
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -170,6 +285,38 @@ export default function App() {
             onChange={(e) => setConfig({ durationYears: parseInt(e.target.value) || 4 })}
           />
           <div className="w-px h-6 bg-gray-200" />
+
+          {/* Cloud sync */}
+          <button
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              syncStatus === 'done' ? 'bg-green-50 text-green-700' :
+              syncStatus === 'error' ? 'bg-red-50 text-red-700' :
+              'bg-blue-50 text-blue-700 hover:bg-blue-100'
+            }`}
+            onClick={handleCloudSave}
+            disabled={syncStatus === 'saving' || syncStatus === 'loading'}
+          >
+            {syncLabel}
+          </button>
+          <button
+            className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+            onClick={handleCloudLoad}
+            disabled={syncStatus === 'saving' || syncStatus === 'loading'}
+          >
+            {loadLabel}
+          </button>
+          <button
+            className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={() => setShowSyncSetup(true)}
+            title="Cloud sync settings"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg>
+          </button>
+
+          <div className="w-px h-6 bg-gray-200" />
           <button
             className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             onClick={handlePrint}
@@ -206,6 +353,7 @@ export default function App() {
           onClose={() => { selectItem(null); setShowAddItem(false); }}
         />
       )}
+      {showSyncSetup && <SyncSetupModal onClose={() => setShowSyncSetup(false)} />}
     </div>
   );
 }
