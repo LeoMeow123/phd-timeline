@@ -7,7 +7,7 @@ import { parseISO, addDays, differenceInCalendarDays, format } from 'date-fns';
 import { useStore } from '../store';
 import { getTimeColumns, totalTimelineWidth, computeSubRows, pixelsPerDay, dateToX, snapDate, formatDateShort } from '../utils';
 import type { Track as TrackType, TimelineItem } from '../types';
-import Bar, { BAR_HEIGHT, CP_ROW_HEIGHT, ROW_GAP, rowPitch } from './Bar';
+import Bar, { BAR_HEIGHT, CP_ROW_HEIGHT, ROW_GAP, itemCpRows } from './Bar';
 
 const HEADER_WIDTH = 280;
 const AXIS_HEIGHT = 40;
@@ -97,9 +97,9 @@ function TrackPanel({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="border-b border-gray-100 overflow-hidden">
+    <div ref={setNodeRef} style={style} className="border-b border-gray-100 flex flex-col">
       {/* Track header row */}
-      <div className="flex items-center gap-1.5 px-2 py-1 group/track hover:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-1.5 px-2 py-1 group/track hover:bg-gray-100 transition-colors flex-shrink-0">
         <div
           {...attributes}
           {...listeners}
@@ -137,8 +137,9 @@ function TrackPanel({
         </button>
       </div>
 
-      {/* Items list (when track is expanded) */}
-      {!track.collapsed && trackItems.map((item) => {
+      {/* Items list (when track is expanded) — scrollable */}
+      {!track.collapsed && <div className="overflow-y-auto flex-1 min-h-0">
+      {trackItems.map((item) => {
         const isExpanded = expandedItems.has(item.id);
         const cps = item.checkpoints ?? [];
         const cpDone = cps.filter((c) => c.done).length;
@@ -215,23 +216,23 @@ function TrackPanel({
           </div>
         );
       })}
+      </div>}
     </div>
   );
 }
 
 // SVG arrow between two items
 function DependencyArrow({
-  from, to, programStart, zoom, fromSubRow, toSubRow, fromTrackOffset, toTrackOffset,
+  from, to, programStart, zoom, fromSubRow, toSubRow, fromTrackOffset, toTrackOffset, fromPitch, toPitch,
 }: {
   from: TimelineItem; to: TimelineItem; programStart: string; zoom: string;
   fromSubRow: number; toSubRow: number; fromTrackOffset: number; toTrackOffset: number;
+  fromPitch: number; toPitch: number;
 }) {
   const fromX = dateToX(from.end, programStart, zoom as any);
   const toX = dateToX(to.start, programStart, zoom as any);
-  // Use a generous pitch for arrow positioning
-  const pitch = rowPitch(true);
-  const fromY = fromTrackOffset + fromSubRow * pitch + ROW_GAP + BAR_HEIGHT / 2;
-  const toY = toTrackOffset + toSubRow * pitch + ROW_GAP + BAR_HEIGHT / 2;
+  const fromY = fromTrackOffset + fromSubRow * fromPitch + ROW_GAP + BAR_HEIGHT / 2;
+  const toY = toTrackOffset + toSubRow * toPitch + ROW_GAP + BAR_HEIGHT / 2;
   const midX = (fromX + toX) / 2;
 
   return (
@@ -276,16 +277,26 @@ export default function Timeline() {
     return map;
   }, [tracks, items]);
 
-  // Check which tracks have items with checkpoints (need taller rows)
-  const trackHasCheckpoints = useMemo(() => {
-    const map = new Map<string, boolean>();
+  // Compute max checkpoint sub-rows per track and per-item row pitch
+  const trackRowPitch = useMemo(() => {
+    const map = new Map<string, number>();
     for (const track of tracks) {
       const td = trackData.get(track.id);
-      const hasCp = td ? td.items.some((i) => (i.checkpoints?.length ?? 0) > 0) : false;
-      map.set(track.id, hasCp);
+      if (!td || td.items.length === 0) {
+        map.set(track.id, BAR_HEIGHT + ROW_GAP);
+        continue;
+      }
+      // Find max checkpoint rows across all items in this track
+      let maxCpRows = 0;
+      for (const item of td.items) {
+        const barLeft = dateToX(item.start, config.startDate, zoom);
+        const cpRows = itemCpRows(item, barLeft, config.startDate, zoom);
+        if (cpRows > maxCpRows) maxCpRows = cpRows;
+      }
+      map.set(track.id, BAR_HEIGHT + maxCpRows * CP_ROW_HEIGHT + ROW_GAP);
     }
     return map;
-  }, [tracks, trackData]);
+  }, [tracks, trackData, config.startDate, zoom]);
 
   const { laneHeights, trackOffsets } = useMemo(() => {
     const laneHeights = new Map<string, number>();
@@ -294,21 +305,21 @@ export default function Timeline() {
     for (const track of tracks) {
       const td = trackData.get(track.id);
       const rows = td ? td.maxRow + 1 : 1;
-      const hasCp = trackHasCheckpoints.get(track.id) ?? false;
-      const pitch = rowPitch(hasCp);
+      const pitch = trackRowPitch.get(track.id) ?? (BAR_HEIGHT + ROW_GAP);
       const h = track.collapsed ? 24 : Math.max(MIN_LANE_HEIGHT, rows * pitch + 8);
       laneHeights.set(track.id, h);
       trackOffsets.set(track.id, y);
       y += h;
     }
     return { laneHeights, trackOffsets };
-  }, [tracks, trackData, trackHasCheckpoints]);
+  }, [tracks, trackData, trackRowPitch]);
 
   const arrows = useMemo(() => {
     const result: {
       from: TimelineItem; to: TimelineItem;
       fromSubRow: number; toSubRow: number;
       fromTrackOffset: number; toTrackOffset: number;
+      fromPitch: number; toPitch: number;
     }[] = [];
     for (const item of items) {
       if (!item.dependsOn?.length) continue;
@@ -325,11 +336,13 @@ export default function Timeline() {
           toSubRow: toTd.subRows.get(item.id) ?? 0,
           fromTrackOffset: trackOffsets.get(dep.trackId) ?? 0,
           toTrackOffset: trackOffsets.get(item.trackId) ?? 0,
+          fromPitch: trackRowPitch.get(dep.trackId) ?? (BAR_HEIGHT + ROW_GAP),
+          toPitch: trackRowPitch.get(item.trackId) ?? (BAR_HEIGHT + ROW_GAP),
         });
       }
     }
     return result;
-  }, [items, trackData, trackOffsets]);
+  }, [items, trackData, trackOffsets, trackRowPitch]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -461,6 +474,7 @@ export default function Timeline() {
                       key={i} from={a.from} to={a.to} programStart={config.startDate} zoom={zoom}
                       fromSubRow={a.fromSubRow} toSubRow={a.toSubRow}
                       fromTrackOffset={a.fromTrackOffset} toTrackOffset={a.toTrackOffset}
+                      fromPitch={a.fromPitch} toPitch={a.toPitch}
                     />
                   ))}
                 </svg>
@@ -488,7 +502,7 @@ export default function Timeline() {
                       td.items.map((item) => (
                         <Bar key={item.id} item={item} programStart={config.startDate} zoom={zoom}
                           subRow={td.subRows.get(item.id) ?? 0}
-                          rowHeight={rowPitch(trackHasCheckpoints.get(track.id) ?? false)}
+                          rowHeight={trackRowPitch.get(track.id) ?? (BAR_HEIGHT + ROW_GAP)}
                           isSelected={selectedItemId === item.id}
                           onClick={() => selectItem(item.id)} onUpdate={updateItem}
                         />

@@ -175,6 +175,53 @@ export function formatDateShort(d: string): string {
   return format(parseISO(d), 'MMM d, yyyy');
 }
 
+// Compute row indices for checkpoint labels so overlapping ones stack vertically
+// Returns map of cpId → row, plus maxRow count
+import type { Checkpoint } from './types';
+
+const CP_LABEL_CHAR_PX = 4.5;  // approx px per char at font-size 8
+const CP_LABEL_PAD = 16;       // tick width + margin
+
+export function computeCheckpointRows(
+  checkpoints: Checkpoint[],
+  barLeft: number,
+  programStart: string,
+  zoom: ZoomLevel,
+): { rows: Map<string, number>; maxRow: number } {
+  const result = new Map<string, number>();
+  if (!checkpoints.length) return { rows: result, maxRow: 0 };
+
+  // Compute x position and estimated label width for each checkpoint
+  const items = checkpoints
+    .map((cp) => {
+      const x = dateToX(cp.date, programStart, zoom) - barLeft;
+      const labelWidth = cp.label.length * CP_LABEL_CHAR_PX + CP_LABEL_PAD;
+      return { id: cp.id, x, right: x + labelWidth };
+    })
+    .sort((a, b) => a.x - b.x);
+
+  // Greedy row assignment — same as computeSubRows but using pixel ranges
+  const rowEnds: number[] = []; // rightmost x of last label placed in each row
+
+  for (const item of items) {
+    let placed = false;
+    for (let r = 0; r < rowEnds.length; r++) {
+      if (item.x >= rowEnds[r]) {
+        rowEnds[r] = item.right;
+        result.set(item.id, r);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      result.set(item.id, rowEnds.length);
+      rowEnds.push(item.right);
+    }
+  }
+
+  return { rows: result, maxRow: rowEnds.length };
+}
+
 // Returns 'white' or '#1e293b' based on background luminance
 export function textColorForBg(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);

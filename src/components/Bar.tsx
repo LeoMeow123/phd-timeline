@@ -1,19 +1,21 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { format, parseISO, addDays, differenceInCalendarDays } from 'date-fns';
 import type { TimelineItem, ZoomLevel } from '../types';
-import { pixelsPerDay, snapDate, dateToX, textColorForBg } from '../utils';
+import { pixelsPerDay, snapDate, dateToX, textColorForBg, computeCheckpointRows } from '../utils';
 
 export const BAR_HEIGHT = 28;
-export const CP_ROW_HEIGHT = 18;
+export const CP_ROW_HEIGHT = 16;
 export const ROW_GAP = 4;
 
 const MILESTONE_SIZE = 20;
 const HANDLE_WIDTH = 8;
 
-// Row pitch depends on whether any item in the track has checkpoints
-export function rowPitch(hasCheckpoints: boolean): number {
-  return BAR_HEIGHT + (hasCheckpoints ? CP_ROW_HEIGHT : 0) + ROW_GAP;
+// Compute how many checkpoint sub-rows an item needs
+export function itemCpRows(item: TimelineItem, barLeft: number, programStart: string, zoom: ZoomLevel): number {
+  if (!item.checkpoints?.length) return 0;
+  const { maxRow } = computeCheckpointRows(item.checkpoints, barLeft, programStart, zoom);
+  return maxRow;
 }
 
 interface BarProps {
@@ -21,7 +23,7 @@ interface BarProps {
   programStart: string;
   zoom: ZoomLevel;
   subRow: number;
-  rowHeight: number; // total row pitch for this track
+  rowHeight: number;
   isSelected: boolean;
   onClick: () => void;
   onUpdate: (id: string, changes: Partial<TimelineItem>) => void;
@@ -32,7 +34,6 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
   const isMilestone = item.type === 'milestone' || item.type === 'decision-gate';
   const isDone = item.status === 'done';
   const isInProgress = item.status === 'in-progress';
-  const hasCheckpoints = (item.checkpoints?.length ?? 0) > 0;
 
   const baseLeft = dateToX(item.start, programStart, zoom);
   const baseRight = dateToX(item.end, programStart, zoom);
@@ -65,6 +66,14 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
     const snappedDate = snapDate(addDays(parseISO(item.start), daysDelta), zoom);
     dragOffsetX = differenceInCalendarDays(snappedDate, parseISO(item.start)) * ppd;
   }
+
+  // Compute checkpoint row layout
+  const cpLayout = useMemo(() => {
+    if (!item.checkpoints?.length) return { rows: new Map<string, number>(), maxRow: 0 };
+    return computeCheckpointRows(item.checkpoints, left + dragOffsetX, programStart, zoom);
+  }, [item.checkpoints, left, dragOffsetX, programStart, zoom]);
+
+  const cpTotalHeight = cpLayout.maxRow * CP_ROW_HEIGHT;
 
   const startResize = useCallback((e: React.PointerEvent, side: 'left' | 'right') => {
     e.stopPropagation();
@@ -177,7 +186,7 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
         left: left + dragOffsetX,
         top,
         width: Math.max(width, 4),
-        height: BAR_HEIGHT + (hasCheckpoints ? CP_ROW_HEIGHT : 0),
+        height: BAR_HEIGHT + cpTotalHeight,
         zIndex: isDragging ? 100 : isSelected ? 50 : 1,
         opacity: isDone ? 0.5 : isDragging ? 0.85 : 1,
       }}
@@ -208,39 +217,36 @@ export default function Bar({ item, programStart, zoom, subRow, rowHeight, isSel
         </span>
       </div>
 
-      {/* Checkpoint sub-bar row */}
-      {hasCheckpoints && (
-        <div className="relative" style={{ height: CP_ROW_HEIGHT, marginTop: 1 }}>
-          {/* Thin connecting line */}
-          <div className="absolute" style={{
-            left: 0, right: 0, top: 3, height: 1,
-            background: `${item.color}30`,
-          }} />
-          {/* Checkpoint markers */}
-          {item.checkpoints!.map((cp) => {
+      {/* Checkpoint sub-rows */}
+      {item.checkpoints && item.checkpoints.length > 0 && (
+        <div className="relative" style={{ height: cpTotalHeight }}>
+          {item.checkpoints.map((cp) => {
             const cpX = dateToX(cp.date, programStart, zoom) - (left + dragOffsetX);
+            const row = cpLayout.rows.get(cp.id) ?? 0;
+            const cpY = row * CP_ROW_HEIGHT;
             return (
               <div
                 key={cp.id}
-                className="absolute flex flex-col items-center"
-                style={{ left: cpX - 1, top: 0 }}
+                className="absolute flex items-start gap-0.5"
+                style={{ left: cpX - 1, top: cpY }}
               >
                 {/* Vertical tick */}
-                <div style={{
-                  width: 2, height: 7,
-                  background: cp.done ? '#22c55e' : item.color,
+                <div className="flex-shrink-0" style={{
+                  width: 2, height: CP_ROW_HEIGHT - 2,
+                  background: cp.done ? '#22c55e' : `${item.color}80`,
                   borderRadius: 1,
+                  marginTop: 1,
                 }} />
                 {/* Label */}
                 <div
                   className="whitespace-nowrap pointer-events-none"
                   style={{
-                    fontSize: 8,
-                    lineHeight: '10px',
+                    fontSize: 9,
+                    lineHeight: `${CP_ROW_HEIGHT}px`,
                     color: cp.done ? '#22c55e' : '#6b7280',
                     fontWeight: cp.done ? 600 : 500,
                     textDecoration: cp.done ? 'line-through' : undefined,
-                    marginTop: 0,
+                    paddingLeft: 2,
                   }}
                 >
                   {cp.label}
