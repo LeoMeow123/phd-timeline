@@ -23,6 +23,8 @@ export default function ItemForm({ editItem, onClose }: ItemFormProps) {
   const [note, setNote] = useState(editItem?.note ?? '');
   const [dependsOn, setDependsOn] = useState<string[]>(editItem?.dependsOn ?? []);
 
+  // Only reset form fields when opening a DIFFERENT item, not on every reference change
+  const editId = editItem?.id;
   useEffect(() => {
     if (editItem) {
       setName(editItem.name);
@@ -35,7 +37,8 @@ export default function ItemForm({ editItem, onClose }: ItemFormProps) {
       setNote(editItem.note ?? '');
       setDependsOn(editItem.dependsOn ?? []);
     }
-  }, [editItem]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   const isMilestoneType = type === 'milestone' || type === 'decision-gate';
 
