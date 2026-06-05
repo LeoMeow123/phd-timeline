@@ -130,7 +130,7 @@
       "name": "Home Cage",
       "start": "2026-06-01",
       "end": "2028-10-01",
-      "color": "#06b6d4",
+      "color": "#f59e0b",
       "type": "phase",
       "status": "planned",
       "checkpoints": []
@@ -163,7 +163,7 @@
       "name": "HY thirst gene + drinking (Lee Lab, Mukamel Lab)",
       "start": "2026-06-01",
       "end": "2028-07-31",
-      "color": "#f59e0b",
+      "color": "#84cc16",
       "type": "branch-paper",
       "status": "planned",
       "checkpoints": []
@@ -247,8 +247,8 @@
     {
       "name": "Advance Committee Meeting",
       "trackId": "milestones",
-      "start": "2028-06-04",
-      "end": "2028-09-04",
+      "start": "2028-06-01",
+      "end": "2028-09-01",
       "color": "#ef4444",
       "type": "phase",
       "status": "planned",
